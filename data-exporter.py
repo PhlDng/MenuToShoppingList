@@ -1,6 +1,10 @@
 #This is where all the functions related to sending out the data willl be stored
 
 #import packages
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 import telegram
 from telegram.ext import Updater, CommandHandler
 
@@ -20,9 +24,24 @@ def send_to_telegram(list_to_send = ["Eggs", "Milk"]):
                                  text=element,
                                  parse_mode="Markdown")
 
-def send_to_wunderlist(list_to_send=["Eggs", "Milk"]):
+def send_to_wunderlist(list_to_send=["Eggs", "Milk"],):
     print ("ToDo: Wunderlist")
 
-def send_to_email(list_to_send=["Eggs", "Milk"])
-    print ("ToDo: E-Mail")
+def send_to_email(list_to_send=["Eggs", "Milk"], email_to_send_to="philipp.ding@gmail.com"):
+    server = smtplib.SMTP('smtp.mail.ch', 587)
+    server.starttls()
+    server.login(keys.email_user, keys.email_password)
+
+    msg = MIMEMultipart()
+    msg['From'] = keys.email_user
+    msg['To'] = email_to_send_to
+    msg['Subject'] = "SUBJECT OF THE MAIL"
+
+    body = str(list_to_send)
+    msg.attach(MIMEText(body, 'plain'))
+
+    server.sendmail(keys.email_user, email_to_send_to , msg.as_string())
+    server.quit()
+
+send_to_email()
 
