@@ -8,9 +8,10 @@ from email.mime.text import MIMEText
 import telegram
 from telegram.ext import Updater, CommandHandler
 
-#import keys
-import keys
+import wunderpy2
 
+#import keys for apps
+import keys
 
 
 def send_to_telegram(list_to_send = ["Eggs", "Milk"]):
@@ -25,7 +26,33 @@ def send_to_telegram(list_to_send = ["Eggs", "Milk"]):
                                  parse_mode="Markdown")
 
 def send_to_wunderlist(list_to_send=["Eggs", "Milk"],):
-    print ("ToDo: Wunderlist")
+    api = wunderpy2.WunderApi()
+    client = api.get_client(keys.wunderlist_access_token, keys.wunderlist_client_id)
+    lists = client.get_lists()
+
+    #creating a dict with all the List names and corresponding id
+    dict_lists = {}
+    for i in range(len(lists)):
+        dict_lists[lists[i]["title"]] = lists[i]["id"]
+
+    # check if there is a list called "Grocery List
+    list_name_grocery = "List of groceries"
+    if str(list_name_grocery) in dict_lists.keys():
+        print("List already exists")
+    else:
+        client.create_list(list_name_grocery)
+        #update dict of list to get id of new list
+        lists = client.get_lists()
+        for i in range(len(lists)):
+            dict_lists[lists[i]["title"]] = lists[i]["id"]
+        print("New list created")
+
+    #add groceries to list
+    for items in list_to_send:
+        client.create_task(dict_lists[list_name_grocery], items)
+
+
+
 
 def send_to_email(list_to_send=["Eggs", "Milk"], email_to_send_to="philipp.ding@gmail.com"):
     server = smtplib.SMTP('smtp.mail.ch', 587)
@@ -43,5 +70,5 @@ def send_to_email(list_to_send=["Eggs", "Milk"], email_to_send_to="philipp.ding@
     server.sendmail(keys.email_user, email_to_send_to , msg.as_string())
     server.quit()
 
-send_to_email()
 
+send_to_wunderlist()
