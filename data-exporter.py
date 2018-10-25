@@ -1,4 +1,5 @@
-#This is where all the functions related to sending out the data willl be stored
+#This is where all the functions related to sending out the data will be stored
+# Options so far: E-Mail, Telegram, Wunderlist
 
 #import packages
 import smtplib
@@ -13,6 +14,7 @@ import wunderpy2
 #import keys for apps
 import keys
 
+list_groceries = ["Milk", "Eggs", "Bread", "Meat", "Lemons", "Flour"]
 
 def send_to_telegram(list_to_send = ["Eggs", "Milk"]):
 
@@ -49,10 +51,8 @@ def send_to_wunderlist(list_to_send=["Eggs", "Milk"],):
 
     #add groceries to list
     for items in list_to_send:
+        #
         client.create_task(dict_lists[list_name_grocery], items)
-
-
-
 
 def send_to_email(list_to_send=["Eggs", "Milk"], email_to_send_to="philipp.ding@gmail.com"):
     server = smtplib.SMTP('smtp.mail.ch', 587)
@@ -70,5 +70,5 @@ def send_to_email(list_to_send=["Eggs", "Milk"], email_to_send_to="philipp.ding@
     server.sendmail(keys.email_user, email_to_send_to , msg.as_string())
     server.quit()
 
-
-send_to_wunderlist()
+send_to_wunderlist(list_groceries)
+send_to_telegram(list_groceries)
