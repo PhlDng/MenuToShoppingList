@@ -3,7 +3,7 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageH
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 import logging
 import json
-import keys
+import config
 
 ########################### Setting up the event logger #############################################
 logging.basicConfig(level=logging.INFO,
@@ -47,8 +47,7 @@ def new_user(bot, update):
         new_user_info = {"telegram_id":update.message.chat_id,
                          "first_name":update.message.from_user.first_name,
                          "last_name":update.message.from_user.last_name,
-                         "wunderlist_id":"",
-                         "e-mail":""}
+                         "e-mail":"No e-mail"}
 
         list_known_ids[update.message.chat_id] = new_user_info
 
@@ -75,13 +74,11 @@ def edit_user_profile(bot, update):
                           "*Telegram ID*: {}".format(user_info[str(update.message.chat_id)]["telegram_id"]) +
                           "\n*First Name*: {}".format(user_info[str(update.message.chat_id)]["first_name"]) +
                           "\n*Last Name*: {}".format(user_info[str(update.message.chat_id)]["last_name"]) +
-                          "\n*E-Mail*: {}".format(user_info[str(update.message.chat_id)]["e-mail"]) +
-                          "\n*Wunderlist ID*: {}".format(user_info[str(update.message.chat_id)]["wunderlist_id"])
+                          "\n*E-Mail*: {}".format(user_info[str(update.message.chat_id)]["e-mail"])
                      )
 
     #Asking user what to do next? Init of bot waiting for signal from menu, will be funneled through callback handler
-    button_list = [[InlineKeyboardButton("Edit e-mail", callback_data="edit_email"),
-                    InlineKeyboardButton("Edit wunderlist ID", callback_data="edit_wunderlist")]]
+    button_list = [[InlineKeyboardButton("Edit e-mail", callback_data="edit_email")]
 
     reply_markup = InlineKeyboardMarkup(button_list)
 
@@ -92,14 +89,14 @@ def edit_user_profile(bot, update):
     return OPTION_EDIT
 
 def admin_info(bot, update):
-    if update.message.chat_id in keys.telegram_admin_ids:
+    if update.message.chat_id in config.telegram_admin_ids:
         user_info = load_user_info()
         update.message.reply_text(user_info)
 
 ################### Functions for ConversationHandler (Edit User Info) ###############################
 
 #Not sure why this has to be done. Creates states for Cenversation Handler?
-OPTION_EDIT, EDIT_EMAIL, EDIT_WUNDERLIST = range(3)
+OPTION_EDIT, EDIT_EMAIL = range(2)
 
 def user_info_inline_call_handler(bot, update):
     if update.callback_query.data == "edit_email":
@@ -109,15 +106,6 @@ def user_info_inline_call_handler(bot, update):
                          text="Alright! Please send me your e-mail address:")
 
         return EDIT_EMAIL
-
-    elif update.callback_query.data == "edit_wunderlist":
-        bot.answerCallbackQuery(callback_query_id=update.callback_query.id,
-                                text="Editing your Wunderlist ID")
-        bot.send_message(chat_id=update.callback_query.message.chat.id,
-                         text="Alright! Please send me your Wunderlist ID:")
-
-        return EDIT_WUNDERLIST
-
     else:
         logger.error("Signal sent by InlineKeyboard not found.")
 
@@ -129,15 +117,6 @@ def edit_email(bot, update):
     update.message.reply_text("Thanks! Your e-mail address has been saved.")
     logger.info("%s changed his E-Mail", update.message.from_user.first_name)
     return ConversationHandler.END # temp. Should go back to asking if change anythin else
-
-def edit_wunderlist(bot, update):
-    user_info = load_user_info()
-    user_info[str(update.message.chat_id)]["wunderlist_id"] = update.message.text
-    save_user_info(user_info)
-
-    update.message.reply_text("Thanks! Your Wunderlist ID has been saved.")
-    logger.info("%s changed his Wunderlist ID", update.message.from_user.first_name)
-    return ConversationHandler.END  # temp. Should go back to asking if change anythin else
 
 def cancel(bot, update):
     user = update.message.from_user
@@ -156,7 +135,7 @@ def error_callback(bot, update, error):
 ####################################################################################################
 
 # Create the Updater which will connect to the Telegram API and send/recieve updates
-updater = Updater(keys.key_telegram_bot) #creates bot
+updater = Updater(config.key_telegram_bot) #creates bot
 dispatcher = updater.dispatcher #shortcut to add Handlers to the dispatcher
 
 #################### DIFFERENT TYPES OF EVENT HANDLERS USED BY THE BOT #############################
@@ -175,8 +154,6 @@ user_info_conv_handler = ConversationHandler(
         states={ #Worauf warten wir? State wird am ende der vorherigen Funtkion gesetzt
             OPTION_EDIT: [CallbackQueryHandler(user_info_inline_call_handler)],
             EDIT_EMAIL: [MessageHandler(Filters.text, edit_email)],
-
-            EDIT_WUNDERLIST : [MessageHandler(Filters.text, edit_wunderlist)],
         },
 
         fallbacks=[CommandHandler('cancel', cancel)]
