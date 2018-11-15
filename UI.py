@@ -65,6 +65,30 @@ def add_recipe(bot, update):
     update.message.reply_text(
         'Hello {}, add your recipe'.format(update.message.from_user.first_name))
 
+    #Check if file exists --> if not, create it
+
+    #### Creating default json file
+    liste_zutaten = {"Pesto Nudeln":[
+                   {"Nudeln":[
+                        {"Name": "Nudeln"},
+                        {"Menge": "800"},
+                        {"Einheiten": "g"}]
+                    },
+                    {"Pesto":[
+                        {"Name": "Pesto"},
+                        {"Menge": "1"},
+                        {"Einheiten": "Glas"}]
+                    }]}
+
+    f = open("list_recipes.json", "w")
+    json.dump(liste_zutaten, f)
+    f.close()
+
+
+    update.message.reply_text("Please send your first ingredient:")
+
+    return ADD_NAME
+
 def edit_user_profile(bot, update):
     user_info = load_user_info()
 
@@ -78,7 +102,7 @@ def edit_user_profile(bot, update):
                      )
 
     #Asking user what to do next? Init of bot waiting for signal from menu, will be funneled through callback handler
-    button_list = [[InlineKeyboardButton("Edit e-mail", callback_data="edit_email")]
+    button_list = [[InlineKeyboardButton("Edit e-mail", callback_data="edit_email")]]
 
     reply_markup = InlineKeyboardMarkup(button_list)
 
@@ -94,7 +118,6 @@ def admin_info(bot, update):
         update.message.reply_text(user_info)
 
 ################### Functions for ConversationHandler (Edit User Info) ###############################
-
 #Not sure why this has to be done. Creates states for Cenversation Handler?
 OPTION_EDIT, EDIT_EMAIL = range(2)
 
@@ -115,7 +138,7 @@ def edit_email(bot, update):
     save_user_info(user_info)
 
     update.message.reply_text("Thanks! Your e-mail address has been saved.")
-    logger.info("%s changed his E-Mail", update.message.from_user.first_name)
+    logger.info("%s changed his/her E-Mail", update.message.from_user.first_name)
     return ConversationHandler.END # temp. Should go back to asking if change anythin else
 
 def cancel(bot, update):
@@ -125,6 +148,45 @@ def cancel(bot, update):
 
     return ConversationHandler.END
 
+################### Functions for ConversationHandler (Add Recipe Info) ###############################
+ADD_NAME, ADD_QUANTITY, ADD_UNIT, ADD_MORE = range(4)
+def add_name_rec(bot, update):
+    print(update.message.text)
+
+    update.message.reply_text("Please enter the quantity:")
+    return ADD_QUANTITY
+
+def add_quantitiy_rec(bot, update):
+    print(update.message.text)
+
+    update.message.reply_text("Please enter the unit:")
+    return ADD_UNIT
+
+def add_unit_rec(bot, update):
+    print (update.message.text)
+
+
+    update.message.reply_text("Would you like to add another ingredient?")
+    update.message.reply_text("Please enter 'yes' or 'no'")
+    return ADD_MORE
+
+def add_more_rec(bot, update):
+    print ("more")
+    if str(update.message.text) == "yes":
+
+        update.message.reply_text("Please send your next ingredient:")
+        return ADD_NAME
+
+    else:
+        update.message.reply_text("Thanks bro! Nice one")
+        return ConversationHandler.END
+
+def cancel(bot, update):
+    user = update.message.from_user
+    logger.info("%s canceled the conversation.", user.first_name)
+    update.message.reply_text('Bye! I hope we can talk again some day.')
+
+    return ConversationHandler.END
 ######################### General Error Handling Function ############################################
 def error_callback(bot, update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
@@ -159,12 +221,26 @@ user_info_conv_handler = ConversationHandler(
         fallbacks=[CommandHandler('cancel', cancel)]
     )
 
+add_recipe_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('add_recipes', add_recipe)],
+
+        states={ #Worauf warten wir? State wird am ende der vorherigen Funtkion gesetzt
+            ADD_NAME: [MessageHandler(Filters.text, add_name_rec)],
+            ADD_QUANTITY: [MessageHandler(Filters.text, add_quantitiy_rec)],
+            ADD_UNIT: [MessageHandler(Filters.text, add_unit_rec)],
+            ADD_MORE: [MessageHandler(Filters.text, add_more_rec)]
+        },
+
+        fallbacks=[CommandHandler('cancel', cancel)]
+    )
+
 dispatcher.add_handler(user_info_conv_handler)
+dispatcher.add_handler(add_recipe_conv_handler)
 
 ##################################### CommandHandlers #################################################
 dispatcher.add_handler(CommandHandler('start', new_user))
 dispatcher.add_handler(CommandHandler('list_recipes', show_recipes))
-dispatcher.add_handler(CommandHandler('add_recipes', add_recipe))
+#dispatcher.add_handler(CommandHandler('add_recipes', add_recipe))
 dispatcher.add_handler(CommandHandler('admin', admin_info))
 
 
