@@ -4,6 +4,13 @@ from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 import logging
 import json
 import config
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+########################### Definition of global variables###########################################
+global list_selected_recipes
+list_selected_recipes = []
 
 ########################### Setting up the event logger #############################################
 logging.basicConfig(level=logging.INFO,
@@ -28,13 +35,73 @@ def save_user_info(user_info):
     json.dump(user_info, f)
     f.close()
 
-################################## Main Commandhandler Function #####################################
+def load_recipes():
+# Load User Info
+    try:
+        f = open("list_recipes.json", "r")
+        list_recipes = json.load(f)
+        f.close()
+    except:
+        #if json file not found, create basic recipe to be saved to new file
+        list_recipes = {"Pesto Nudeln": {
+            "Nudeln": {
+                "Name": "Nudeln",
+                "Menge": "800",
+                "Einheiten": "g"}
+            ,
+            "Pesto": {
+                "Name": "Pesto",
+                "Menge": "1",
+                "Einheiten": "Glas"}
+        }}
+        save_recipes(list_recipes)
+    return list_recipes
+
+def save_recipes(list_recipes):
+    f = open("list_recipes.json", 'w')
+    json.dump(list_recipes, f)
+    f.close()
+
+def menu_build_helper(buttons,
+               n_cols,
+               header_buttons=None,
+               footer_buttons=None):
+
+    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
+    if header_buttons:
+        menu.insert(0, header_buttons)
+    if footer_buttons:
+        menu.append(footer_buttons)
+    return menu
+
+def build_list_ingredients(list_selected_recipes):
+    data_recipes = load_recipes()
+    str_ingredients = ""
+
+    #List of recipes
+    str_ingredients = "<b>You selected the following recipes</b>: \n"
+    for recipe in list_selected_recipes:
+        str_ingredients = str_ingredients + str(recipe) + "\n"
+
+    #List of ingredients
+    str_ingredients = str_ingredients + "\n<b>Here are the ingredients you need to prepare these recipes</b>: \n"
+
+    for selected_item in list_selected_recipes:
+        for ingredient in data_recipes[selected_item]:
+            str_ingredients = str_ingredients + \
+                              data_recipes[selected_item][ingredient]["Menge"] + " " + \
+                              data_recipes[selected_item][ingredient]["Einheiten"] + " " + \
+                              data_recipes[selected_item][ingredient]["Name"] + "\n"
+
+    return str_ingredients
+################################## Main Commandhandler Functions #####################################
 def new_user(bot, update):
     list_known_ids = load_user_info()
     #checking if user is registered in the user_data file. If not ask for info
     if str(update.message.chat_id) in list_known_ids.keys():
         bot.send_message(chat_id=update.message.chat_id,
                          text="Welcome back {}!".format(update.message.from_user.first_name))
+
         logger.info("Returning user %s connected", update.message.from_user.first_name)
 
     else:
@@ -52,46 +119,39 @@ def new_user(bot, update):
         list_known_ids[update.message.chat_id] = new_user_info
 
         #save new dict to json-file
-        f = open("user_data.json", 'w')
-        json.dump(list_known_ids, f)
-        f.close()
+        save_user_info(list_known_ids)
         logger.info ("Info for new user %s added to the JSON file", update.message.from_user.first_name)
 
 def show_recipes(bot, update):
-    update.message.reply_text(
-        'Hello {}, showing you all recipes'.format(update.message.from_user.first_name))
+
+    #creating list of available recipes from JSON to build the button menu
+    list_recipes = []
+    for recipe in load_recipes():
+        list_recipes.append(recipe)
+
+    button_list = [InlineKeyboardButton(s, callback_data="selection_" + str(s)) for s in list_recipes]
+    footer_button = [InlineKeyboardButton("Send ingredients to telegram",
+                                          callback_data="export_to_telegram"),
+                     InlineKeyboardButton("Send an email with ingredients",
+                                          callback_data="export_to_email")]
+
+    reply_markup = InlineKeyboardMarkup(menu_build_helper(button_list,
+                                                          n_cols=3,
+                                                          footer_buttons=footer_button))
+    bot.send_message(chat_id=update.message.chat_id,
+                     text="This is what we have in store. "
+                          "Please select what you would like to add to your list",
+                     reply_markup=reply_markup)
 
 def add_recipe(bot, update):
     update.message.reply_text(
         'Hello {}, add your recipe'.format(update.message.from_user.first_name))
 
-    #Check if file exists --> if not, create it
-
-    #### Creating default json file
-    liste_zutaten = {"Pesto Nudeln":[
-                   {"Nudeln":[
-                        {"Name": "Nudeln"},
-                        {"Menge": "800"},
-                        {"Einheiten": "g"}]
-                    },
-                    {"Pesto":[
-                        {"Name": "Pesto"},
-                        {"Menge": "1"},
-                        {"Einheiten": "Glas"}]
-                    }]}
-
-    f = open("list_recipes.json", "w")
-    json.dump(liste_zutaten, f)
-    f.close()
-
-
     update.message.reply_text("Please send your first ingredient:")
-
     return ADD_NAME
 
 def edit_user_profile(bot, update):
     user_info = load_user_info()
-
     bot.send_message(chat_id=update.message.chat_id,
                      parse_mode=telegram.ParseMode.MARKDOWN,
                      text="*This is what we have about you:* \n\n" +
@@ -130,7 +190,7 @@ def user_info_inline_call_handler(bot, update):
 
         return EDIT_EMAIL
     else:
-        logger.error("Signal sent by InlineKeyboard not found.")
+        logger.error("Signal sent by InlineKeyboard fro Profil Edit not found.")
 
 def edit_email(bot, update):
     user_info = load_user_info()
@@ -187,10 +247,57 @@ def cancel(bot, update):
     update.message.reply_text('Bye! I hope we can talk again some day.')
 
     return ConversationHandler.END
+
 ######################### General Error Handling Function ############################################
 def error_callback(bot, update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
 
+######################### CallbackQuerryHandler for selecting recipes#################################
+def selection_recipies(bot, update):
+    #creating list of possible callbacks based on recipes stored in json file
+    list_possible_callbacks = []
+    for recipe in load_recipes():
+        list_possible_callbacks.append("selection_" + recipe)
+
+    #Callback from the menu for one of the recipes
+    if str(update.callback_query.data) in list_possible_callbacks :
+        print ("Selected item:", update.callback_query.data)
+        list_selected_recipes.append(str(update.callback_query.data).lstrip("selection_"))
+
+    # Callback for exporting the list of selected recipes
+    elif update.callback_query.data == "export_to_telegram":
+        bot.send_message(chat_id=update.callback_query.message.chat.id,
+                         parse_mode=telegram.ParseMode.HTML,
+                         text=build_list_ingredients(list_selected_recipes))
+        logger.info("%s just exported a list of ingredients to telegram",
+                    update.callback_query.message.chat.first_name)
+
+
+    elif update.callback_query.data == "export_to_email":
+        user_data = load_user_info()
+        email_user = user_data[str(update.callback_query.message.chat.id)]["e-mail"]
+        name_user = user_data[str(update.callback_query.message.chat.id)]["first_name"]
+
+        server = smtplib.SMTP(str(config.email_smtp_adr), int(config.email_smtp_port))
+        server.starttls()
+        server.login(config.email_user, config.email_password)
+
+        msg = MIMEMultipart()
+        msg['From'] = config.email_user
+        msg['To'] = email_user
+        msg['Subject'] = "List of groceries for {}".format(name_user)
+
+        body = build_list_ingredients(list_selected_recipes)
+        msg.attach(MIMEText(body, 'html'))
+
+        server.sendmail(config.email_user, email_user, msg.as_string())
+        server.quit()
+
+        bot.send_message(chat_id=update.callback_query.message.chat.id,
+                         text="Allright! We just sent the list to {}".format(email_user))
+
+        logger.info("%s just exported a list of ingredients to his e-mail address",
+                    update.callback_query.message.chat.first_name)
 
 ####################################################################################################
 ############################### BOT ASSEMBLY AND EXECUTION #########################################
@@ -203,7 +310,7 @@ dispatcher = updater.dispatcher #shortcut to add Handlers to the dispatcher
 #################### DIFFERENT TYPES OF EVENT HANDLERS USED BY THE BOT #############################
 #################### Types of Handlers used:
                    #  - CommandHandler        --> To handle commands (/...) comming from the user
-                   #  - ConverstionHandler    --> To create more complexe structures. Uses MessageHandler + CallbackQueryHandler
+                   #  - ConversationHandler   --> To create more complexe structures. Uses MessageHandler + CallbackQueryHandler
                    #  - MessageHandler        --> To handle written text from the user in the chat
                    #  - CallbackQueryHandler  --> To handle signals from InlineKeyboards (Menus)
                    #  - ErrorHandler
@@ -239,12 +346,14 @@ dispatcher.add_handler(add_recipe_conv_handler)
 
 ##################################### CommandHandlers #################################################
 dispatcher.add_handler(CommandHandler('start', new_user))
-dispatcher.add_handler(CommandHandler('list_recipes', show_recipes))
-#dispatcher.add_handler(CommandHandler('add_recipes', add_recipe))
+dispatcher.add_handler(CommandHandler('show_recipes', show_recipes))
 dispatcher.add_handler(CommandHandler('admin', admin_info))
 
+##################################### CallbackQueryHandlers ############################################
+dispatcher.add_handler(CallbackQueryHandler(selection_recipies))
 
-##################################### ErrorHandlers ###################################################
+
+##################################### ErrorHandlers ####################################################
 dispatcher.add_error_handler(error_callback) #Any errors will be added to the log
 
 
