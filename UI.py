@@ -41,6 +41,9 @@ def load_recipes():
         f = open("list_recipes.json", "r")
         list_recipes = json.load(f)
         f.close()
+        #Raise error of json file doesn't contain any recipes --> Create Pesto Nudeln
+        if list_recipes == {}:
+            raise ValueError("The list is empty")
     except:
         #if json file not found, create basic recipe to be saved to new file
         list_recipes = {"Pesto Nudeln": {
@@ -150,6 +153,21 @@ def add_recipe(bot, update):
     update.message.reply_text("Please send your first ingredient:")
     return ADD_NAME
 
+def delete_recipe(bot, update):
+    # creating list of available recipes from JSON to build the button menu
+    list_recipes = []
+    for recipe in load_recipes():
+        list_recipes.append("Delete " + recipe)
+
+    button_list = [InlineKeyboardButton(s, callback_data=str(s)) for s in list_recipes]
+
+    reply_markup = InlineKeyboardMarkup(menu_build_helper(button_list,
+                                                          n_cols=2))
+
+    bot.send_message(chat_id=update.message.chat_id,
+                     text="What recipe would you like to delete? Keep in mind, this is definitive",
+                     reply_markup=reply_markup)
+
 def edit_user_profile(bot, update):
     user_info = load_user_info()
     bot.send_message(chat_id=update.message.chat_id,
@@ -253,14 +271,21 @@ def error_callback(bot, update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
 
 ######################### CallbackQuerryHandler for selecting recipes#################################
-def selection_recipies(bot, update):
+def InlineKeyboardCallbackHandler(bot, update):
     #creating list of possible callbacks based on recipes stored in json file
-    list_possible_callbacks = []
-    for recipe in load_recipes():
-        list_possible_callbacks.append("selection_" + recipe)
+    # callback can either come from Delete --> "Delete " or Select --> "selection_"
+    list_possible_callbacks_select = []
+    list_possible_callbacks_delete = []
 
+    for recipe in load_recipes():
+        list_possible_callbacks_select.append("selection_" + recipe)
+
+    for recipe in load_recipes():
+        list_possible_callbacks_delete.append("Delete " + recipe)
+
+    ##### CALLBACK COMMING FROM THE SELECTION MENU #####
     #Callback from the menu for one of the recipes
-    if str(update.callback_query.data) in list_possible_callbacks :
+    if str(update.callback_query.data) in list_possible_callbacks_select :
         print ("Selected item:", update.callback_query.data)
         list_selected_recipes.append(str(update.callback_query.data).lstrip("selection_"))
 
@@ -298,6 +323,20 @@ def selection_recipies(bot, update):
 
         logger.info("%s just exported a list of ingredients to his e-mail address",
                     update.callback_query.message.chat.first_name)
+
+    ##### CALLBACK COMMING FROM THE DELETE MENU #####
+    elif update.callback_query.data in list_possible_callbacks_delete:
+        list_recipes = load_recipes()
+        del list_recipes[update.callback_query.data.lstrip("Delete ")]
+        save_recipes(list_recipes)
+
+        bot.send_message(chat_id=update.callback_query.message.chat.id,
+                         text="Allright! The recipe '{}' has just been deleted."
+                         .format(update.callback_query.data.lstrip("Delete ")))
+
+        logger.info("%s just deleted the following recipe: %s",
+                    update.callback_query.message.chat.first_name,
+                    update.callback_query.data.lstrip("Delete "))
 
 ####################################################################################################
 ############################### BOT ASSEMBLY AND EXECUTION #########################################
@@ -347,10 +386,11 @@ dispatcher.add_handler(add_recipe_conv_handler)
 ##################################### CommandHandlers #################################################
 dispatcher.add_handler(CommandHandler('start', new_user))
 dispatcher.add_handler(CommandHandler('show_recipes', show_recipes))
+dispatcher.add_handler(CommandHandler('delete_recipe', delete_recipe))
 dispatcher.add_handler(CommandHandler('admin', admin_info))
 
 ##################################### CallbackQueryHandlers ############################################
-dispatcher.add_handler(CallbackQueryHandler(selection_recipies))
+dispatcher.add_handler(CallbackQueryHandler(InlineKeyboardCallbackHandler))
 
 
 ##################################### ErrorHandlers ####################################################
