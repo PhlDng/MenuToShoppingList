@@ -15,7 +15,7 @@ Required packages to run this script. They should all be available with pip.
  
  ###### Configuration of bot:
  The config.py file contains the requiered keys and passwords to run the bot.
- It should contain a Bot-Token for the Telegram-Bot, which can be created with the Bot-Father. For more information follow [this link] (https://core.telegram.org/bots). 
+ It should contain a Bot-Token for the Telegram-Bot, which can be created with the Bot-Father. For more information follow [this link](https://core.telegram.org/bots). 
  In addition, the bot needs credentials of an SMTP-server to be able to send e-mails. The following should be added to the config.py file:
   - username
   - password
