@@ -2,7 +2,7 @@
 
 Group project for the HSG Lecture "*Advanced programming languages*"
 
-This project was written in an Python 3.6 environment with the following additional packages
+This project was written in a Python 3.6 environment with the following additional packages
 
 Required packages to run this script. They should all be available with pip.
  - **python-telegram-bot**: https://github.com/python-telegram-bot/python-telegram-bot
@@ -18,8 +18,8 @@ Required packages to run this script. They should all be available with pip.
  It should contain a Bot-Token for the Telegram-Bot, which can be created with the Bot-Father. For more information follow [this link](https://core.telegram.org/bots). 
  
 In addition, the bot needs credentials of an SMTP-server to be able to send e-mails. The following should be added to the config.py file:
-  - username
-  - password
+  - Username
+  - Password
   - SMTP server address
   - SMTP server port
  
