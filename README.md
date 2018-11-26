@@ -11,10 +11,10 @@ Required packages to run this script:
  - email: should be included by default with Python 3.6
  
  
- Instructions to use:
+ ## Instructions:
  
- Configuration of bot:
+ ###### Configuration of bot:
  
- Starting bot:
+ ###### Starting bot:
  
- INteraction with user:
+ ###### Interaction with user:
