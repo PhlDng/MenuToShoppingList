@@ -98,18 +98,31 @@ def build_list_ingredients(list_selected_recipes):
 
     return str_ingredients
 ################################## Main Commandhandler Functions #####################################
+
 def new_user(bot, update):
     list_known_ids = load_user_info()
     #checking if user is registered in the user_data file. If not ask for info
     if str(update.message.chat_id) in list_known_ids.keys():
         bot.send_message(chat_id=update.message.chat_id,
-                         text="Welcome back {}!".format(update.message.from_user.first_name))
+                         text="Welcome back {}!\n\n".format(update.message.from_user.first_name)
+                         + "What would you like to do? You have the choice between the following options:\n\n"
+                         + "Select one or more recipes by typing: /show_recipes\n"
+                         + "Add a recipe to the list by typing: /add_recipes\n"
+                         + "Delete a recipe from the list by typing: /delete_recipe\n"
+                         + "Change your user information by typing: /edit_profile")
 
         logger.info("Returning user %s connected", update.message.from_user.first_name)
 
     else:
         bot.send_message(chat_id=update.message.chat_id,
-                         text="Looks like you're new here! Welcome 😊")
+                         text="Welcome {}! Looks like you're new here!\n\n".format(update.message.from_user.first_name)
+                         + "We don't know your e-mail adress yet. If you want to be able to send the list of ingredients"
+                         + "to your e-mail, make sure to add it in the profile section: /edit_profile\n\n"
+                         + "What would you like to do? You have the choice between the following options:\n\n"
+                         + "Select one or more recipes by typing: /show_recipes\n"
+                         + "Add a recipe to the list by typing: /add_recipes\n"
+                         + "Delete a recipe from the list by typing: /delete_recipe\n"
+                         + "Change your user information by typing: /edit_profile")
 
         logger.info("New user %s connected", update.message.from_user.first_name)
 
@@ -118,7 +131,6 @@ def new_user(bot, update):
                          "first_name":update.message.from_user.first_name,
                          "last_name":update.message.from_user.last_name,
                          "e-mail":"No e-mail"}
-
         list_known_ids[update.message.chat_id] = new_user_info
 
         #save new dict to json-file
@@ -286,7 +298,6 @@ def InlineKeyboardCallbackHandler(bot, update):
     ##### CALLBACK COMMING FROM THE SELECTION MENU #####
     #Callback from the menu for one of the recipes
     if str(update.callback_query.data) in list_possible_callbacks_select :
-        print ("Selected item:", update.callback_query.data)
         list_selected_recipes.append(str(update.callback_query.data).lstrip("selection_"))
 
     # Callback for exporting the list of selected recipes
@@ -311,8 +322,8 @@ def InlineKeyboardCallbackHandler(bot, update):
         msg['From'] = config.email_user
         msg['To'] = email_user
         msg['Subject'] = "List of groceries for {}".format(name_user)
-
-        body = build_list_ingredients(list_selected_recipes)
+        #"replace" function to convert string from Makdown to html
+        body = build_list_ingredients(list_selected_recipes).replace("\n", "<br>")
         msg.attach(MIMEText(body, 'html'))
 
         server.sendmail(config.email_user, email_user, msg.as_string())
