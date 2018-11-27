@@ -1,8 +1,8 @@
-# MenuToShoppingList
+# Telegram Bot to Shopping List
 
-Group project for the HSG Lecture "*Advanced programming languages*"
+This bot was written as a group project for the HSG Lecture "*Advanced programming languages*"
 
-This project was written in a Python 3.6 environment with the following additional packages
+It was written in a Python 3.6 environment with the following additional packages
 
 Required packages to run this script. They should all be available with pip.
  - **python-telegram-bot**: https://github.com/python-telegram-bot/python-telegram-bot
