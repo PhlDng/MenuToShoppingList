@@ -24,5 +24,14 @@ In addition, the bot needs credentials of an SMTP-server to be able to send e-ma
   - SMTP server port
  
  ###### Starting bot:
+ 1. Make sure you have properly configured your bot in config.py
+ 2. Run UI.py
+ 3. Talk to your bot on telegram
  
  ###### Interaction with user:
+ The user interacts with the bot through a set of determined commands:
+  - **/start**: This command is used to start the interaction with the bot. It shows you the list of available commands and creates your account if it's your first time talking to the bot.
+  - **/show_recipes**: Shows the stored recipes. You can select as many as you want and and choose how you would like to recive the corresponding list of ingredients. You have the choice between recieving a telegram message or an e-mail.
+  - **/add_recipes**: With this command you can add a recipe to the list of stored recipes.
+  - **/delete_recipe**: Delete a recipe from the catalogue.
+  - **/edit_profile**: This will show waht informations the bot has stored about you. If you want to be able to send the list of ingredients to you e-mail adress, this is the place where you add it.
