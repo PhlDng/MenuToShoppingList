@@ -270,7 +270,7 @@ def add_more_rec(bot, update):
     else:
         update.message.reply_text("Thanks bro! Nice one")
         return ConversationHandler.END
-
+# hier zwischenspeicher in JSON reinladen
 def cancel(bot, update):
     user = update.message.from_user
     logger.info("%s canceled the conversation.", user.first_name)

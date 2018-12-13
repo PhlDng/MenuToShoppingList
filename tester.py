@@ -285,6 +285,7 @@ def add_unit_rec(bot, update):
     temp_list_recipe[current_recipe_name]=list_ingredients
     save_recipes(temp_list_recipe)
 
+
     #liste ingredients in liste recipes übertragen
 
     update.message.reply_text("Would you like to add another ingredient?")
@@ -299,6 +300,12 @@ def add_more_rec(bot, update):
         return ADD_NAME
 
     else:
+        global list_ingredients
+        list_ingredients=[]
+        global current_ingredient
+        current_ingredient=""
+        global current_recipe_name
+        current_recipe_name=""
         update.message.reply_text("Thanks bro! Nice one")
         return ConversationHandler.END
 # hier zwischenspeicher in JSON reinladen
