@@ -11,7 +11,7 @@ from email.mime.text import MIMEText
 
 ########################### Definition of global variables###########################################
 global list_selected_recipes
-list_selected_recipes = []
+list_selected_recipes = {}
 
 global current_ingredient
 current_ingredient = ""
@@ -119,7 +119,7 @@ def new_user(bot, update):
                          + "Delete a recipe from the list by typing: /delete_recipe\n"
                          + "Change your user information by typing: /edit_profile")
 
-        logger.info("Returning user %s connected", update.message.from_user.first_name)
+        logger.info("%s just opened the start page", update.message.from_user.first_name)
 
     else:
         bot.send_message(chat_id=update.message.chat_id,
@@ -254,16 +254,13 @@ ADD_RECIPE_NAME, ADD_NAME, ADD_QUANTITY, ADD_UNIT, ADD_MORE = range(5)
 def add_name_rec(bot, update):
     global current_recipe_name
     current_recipe_name=update.message.text
-    print (update.message.text) # For information only
     update.message.reply_text("Please enter the first ingredient:")
     return ADD_NAME
 
 # Analogous to prev. step
 def add_name_ing(bot, update):
-    print(update.message.text) # For information only
     list_ingredients[update.message.text] = {}
     list_ingredients[update.message.text]["Name"] = update.message.text
-    print(list_ingredients) # For information only
     global current_ingredient
     current_ingredient=update.message.text
     update.message.reply_text("Please enter the quantity:")
@@ -271,18 +268,13 @@ def add_name_ing(bot, update):
 
 # Analogous to prev. step
 def add_quantitiy_rec(bot, update):
-    print(update.message.text) # For information only
-    print(list_ingredients) # For information only
     list_ingredients[current_ingredient]["Quantity"] = update.message.text
     update.message.reply_text("Please enter the unit:")
-    print(list_ingredients) # For information only
     return ADD_UNIT
 
 # Analogous to prev. step, then consolidate ingredients information and add to json file
 def add_unit_rec(bot, update):
-    print (update.message.text)
     list_ingredients[current_ingredient]["Unit"] = update.message.text
-    print(list_ingredients)
 
     temp_list_recipe = load_recipes()
     temp_list_recipe[current_recipe_name]=list_ingredients
@@ -294,7 +286,6 @@ def add_unit_rec(bot, update):
 
 # Trigger "next round in loop" for next ingredient
 def add_more_rec(bot, update):
-    print ("more")
     if str(update.message.text) == "yes":
 
         update.message.reply_text("Please send your next ingredient:")
@@ -302,13 +293,15 @@ def add_more_rec(bot, update):
 
 # If "no" or anything else than "yes" is entered, process is ended
     else:
+        logger.info("%s just added a new recipe", update.message.chat.first_name)
+        update.message.reply_text("Thank you! The recipe was saved.")
+
         global list_ingredients
         list_ingredients=[]
         global current_ingredient
         current_ingredient=""
         global current_recipe_name
         current_recipe_name=""
-        update.message.reply_text("Thank you! The recipe was saved.")
         return ConversationHandler.END
 
 def cancel(bot, update):
@@ -334,16 +327,29 @@ def InlineKeyboardCallbackHandler(bot, update):
     for recipe in load_recipes():
         list_possible_callbacks_delete.append("Delete " + recipe)
 
+    # check if user is already present in the global recipies list
+    if str(update.callback_query.message.chat.id) not in str(list_selected_recipes.keys()):
+        # create empty list for specified user
+        list_selected_recipes[update.callback_query.message.chat.id] = []
+
     ##### CALLBACK COMMING FROM THE SELECTION MENU #####
     #Callback from the menu for one of the recipes
     if str(update.callback_query.data) in list_possible_callbacks_select :
-        list_selected_recipes.append(str(update.callback_query.data).lstrip("selection_"))
+
+        #check if recipe already is in the list
+        if str(update.callback_query.data.lstrip("selection_")) not in list_selected_recipes[update.callback_query.message.chat.id]:
+            list_selected_recipes[update.callback_query.message.chat.id].append(
+            str(update.callback_query.data).lstrip("selection_"))
 
     # Callback for exporting the list of selected recipes
     elif update.callback_query.data == "export_to_telegram":
         bot.send_message(chat_id=update.callback_query.message.chat.id,
                          parse_mode=telegram.ParseMode.HTML,
-                         text=build_list_ingredients(list_selected_recipes))
+                         text=build_list_ingredients(list_selected_recipes[update.callback_query.message.chat.id]))
+
+        # delete recipies stored in list after we sent the ingredients
+        list_selected_recipes[update.callback_query.message.chat.id] = []
+
         logger.info("%s just exported a list of ingredients to telegram",
                     update.callback_query.message.chat.first_name)
 
@@ -362,7 +368,7 @@ def InlineKeyboardCallbackHandler(bot, update):
         msg['To'] = email_user
         msg['Subject'] = "List of groceries for {}".format(name_user)
         #"replace" function to convert string from Makdown to html
-        body = build_list_ingredients(list_selected_recipes).replace("\n", "<br>")
+        body = build_list_ingredients(list_selected_recipes[update.callback_query.message.chat.id]).replace("\n", "<br>")
         msg.attach(MIMEText(body, 'html'))
 
         server.sendmail(config.email_user, email_user, msg.as_string())
@@ -371,14 +377,23 @@ def InlineKeyboardCallbackHandler(bot, update):
         bot.send_message(chat_id=update.callback_query.message.chat.id,
                          text="Alright! We just sent the list to {}".format(email_user))
 
+        #delete recipies stored in list after we sent the ingredients
+        list_selected_recipes[update.callback_query.message.chat.id] = []
         logger.info("%s just exported a list of ingredients to his e-mail address",
                     update.callback_query.message.chat.first_name)
 
     ##### CALLBACK COMMING FROM THE DELETE MENU #####
     elif update.callback_query.data in list_possible_callbacks_delete:
         list_recipes = load_recipes()
+
+        #Deleting recipe from list of recipies (JSON file)
         del list_recipes[update.callback_query.data.lstrip("Delete ")]
         save_recipes(list_recipes)
+
+        # To avoid errors, we are also checking if a user currently has this recipe in his list
+        # of selected recipes
+        if update.callback_query.data.lstrip("Delete ") in list_selected_recipes[update.callback_query.message.chat.id]:
+            del list_selected_recipes[update.callback_query.message.chat.id
 
         bot.send_message(chat_id=update.callback_query.message.chat.id,
                          text="Alright! The recipe '{}' has just been deleted."
