@@ -1,4 +1,3 @@
-########################### Import of necesssry modules ###########################################
 import telegram
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, ConversationHandler
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
@@ -15,7 +14,6 @@ list_selected_recipes = []
 
 global current_ingredient
 current_ingredient = ""
-
 ########################### Setting up the event logger #############################################
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -23,8 +21,8 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger("Telegram Bot")
 
 ############### Helper functions that have nothing to do with the Telegram API ######################
-# Load user data json fila and crate python list from it
 def load_user_info():
+# Load User Info
     try:
         f = open("user_data.json", "r")
         list_known_ids = json.load(f)
@@ -34,44 +32,46 @@ def load_user_info():
 
     return list_known_ids
 
-# Safe new user data in user data json file
 def save_user_info(user_info):
     f = open("user_data.json", 'w')
     json.dump(user_info, f)
     f.close()
 
-# Load recipe list json file and create python list from it
 def load_recipes():
+# Load User Info
     try:
         f = open("list_recipes.json", "r")
         list_recipes = json.load(f)
         f.close()
-        #Raise error of json file doesn't contain any recipes --> Create standard "Pasta & Pesto"
+        #Raise error of json file doesn't contain any recipes --> Create Pesto Nudeln
         if list_recipes == {}:
             raise ValueError("The list is empty")
     except:
         #if json file not found, create basic recipe to be saved to new file
-        list_recipes = {"Pasta & Pesto": {
-            "Pasta": {
-                "Name": "Pasta",
-                "Quantity": "500",
-                "Unit": "g"}
+        list_recipes = {"Pesto Nudeln": {
+            "Nudeln": {
+                "Name": "Nudeln",
+                "Menge": "800",
+                "Einheiten": "g"}
             ,
             "Pesto": {
                 "Name": "Pesto",
-                "Quantity": "1",
-                "Unit": "Jar"}
+                "Menge": "1",
+                "Einheiten": "Glas"}
         }}
         save_recipes(list_recipes)
     return list_recipes
 
-# Safe new recipe in recipe data json file
 def save_recipes(list_recipes):
     f = open("list_recipes.json", 'w')
     json.dump(list_recipes, f)
     f.close()
 
-# buttons for Telegram
+def save_ingredients(list_new_ingredients):
+    f = open("list_new_ingredients.json", 'w')
+    json.dump(list_new_ingredients, f)
+    f.close()
+
 def menu_build_helper(buttons,
                n_cols,
                header_buttons=None,
@@ -84,7 +84,6 @@ def menu_build_helper(buttons,
         menu.append(footer_buttons)
     return menu
 
-# "Layout" for final output
 def build_list_ingredients(list_selected_recipes):
     data_recipes = load_recipes()
     str_ingredients = ""
@@ -95,13 +94,13 @@ def build_list_ingredients(list_selected_recipes):
         str_ingredients = str_ingredients + str(recipe) + "\n"
 
     #List of ingredients
-    str_ingredients = str_ingredients + "\n<b>Here are the ingredients you need in order to prepare the recipes</b>: \n"
+    str_ingredients = str_ingredients + "\n<b>Here are the ingredients you need to prepare these recipes</b>: \n"
 
     for selected_item in list_selected_recipes:
         for ingredient in data_recipes[selected_item]:
             str_ingredients = str_ingredients + \
-                              data_recipes[selected_item][ingredient]["Quantity"] + " " + \
-                              data_recipes[selected_item][ingredient]["Unit"] + " " + \
+                              data_recipes[selected_item][ingredient]["Menge"] + " " + \
+                              data_recipes[selected_item][ingredient]["Einheiten"] + " " + \
                               data_recipes[selected_item][ingredient]["Name"] + "\n"
 
     return str_ingredients
@@ -141,11 +140,12 @@ def new_user(bot, update):
                          "e-mail":"No e-mail"}
         list_known_ids[update.message.chat_id] = new_user_info
 
-        #save new user to json file
+        #save new dict to json-file
         save_user_info(list_known_ids)
         logger.info ("Info for new user %s added to the JSON file", update.message.from_user.first_name)
 
 def show_recipes(bot, update):
+
     #creating list of available recipes from JSON to build the button menu
     list_recipes = []
     for recipe in load_recipes():
@@ -170,11 +170,13 @@ def add_recipe(bot, update):
         'Hello {}, add your recipe'.format(update.message.from_user.first_name))
     global list_ingredients
     list_ingredients={}
+# name recipe in recipe liste
+
     update.message.reply_text("What is your recipe called?:")
-    return ADD_RECIPE_NAME # go into next state where recipe name is saved
+    return ADD_RECIPE_NAME
 
 def delete_recipe(bot, update):
-    # creating list of available recipes from json to build the button menu
+    # creating list of available recipes from JSON to build the button menu
     list_recipes = []
     for recipe in load_recipes():
         list_recipes.append("Delete " + recipe)
@@ -188,7 +190,6 @@ def delete_recipe(bot, update):
                      text="What recipe would you like to delete? Keep in mind, this is definitive",
                      reply_markup=reply_markup)
 
-# "Layout" for displaying user info to user
 def edit_user_profile(bot, update):
     user_info = load_user_info()
     bot.send_message(chat_id=update.message.chat_id,
@@ -217,82 +218,80 @@ def admin_info(bot, update):
         update.message.reply_text(user_info)
 
 ################### Functions for ConversationHandler (Edit User Info) ###############################
-# Initiate states
+#Not sure why this has to be done. Creates states for Cenversation Handler?
 OPTION_EDIT, EDIT_EMAIL = range(2)
 
-# Section to edit user e-mail address
 def user_info_inline_call_handler(bot, update):
     if update.callback_query.data == "edit_email":
         bot.answerCallbackQuery(callback_query_id=update.callback_query.id,
                                 text="Editing your e-mail address")
         bot.send_message(chat_id=update.callback_query.message.chat.id,
                          text="Alright! Please send me your e-mail address:")
+
         return EDIT_EMAIL
     else:
-        logger.error("Signal sent by InlineKeyboard for Profil Edit not found.")
+        logger.error("Signal sent by InlineKeyboard fro Profil Edit not found.")
 
-# Save the entered address
 def edit_email(bot, update):
     user_info = load_user_info()
     user_info[str(update.message.chat_id)]["e-mail"] = str(update.message.text)
     save_user_info(user_info)
+
     update.message.reply_text("Thanks! Your e-mail address has been saved.")
     logger.info("%s changed his/her E-Mail", update.message.from_user.first_name)
-    return ConversationHandler.END
+    return ConversationHandler.END # temp. Should go back to asking if change anythin else
 
 def cancel(bot, update):
     user = update.message.from_user
     logger.info("%s canceled the conversation.", user.first_name)
     update.message.reply_text('Bye! I hope we can talk again some day.')
+
     return ConversationHandler.END
 
 ################### Functions for ConversationHandler (Add Recipe Info) ###############################
-# Initiate states
 ADD_RECIPE_NAME, ADD_NAME, ADD_QUANTITY, ADD_UNIT, ADD_MORE = range(5)
-
-# Arrive here from first add recipe question, save recipe name, ask for ingredient name and lead to next state
 def add_name_rec(bot, update):
     global current_recipe_name
     current_recipe_name=update.message.text
-    print (update.message.text) # For information only
+
+    print (update.message.text)
     update.message.reply_text("Please enter the first ingredient:")
     return ADD_NAME
 
-# Analogous to prev. step
 def add_name_ing(bot, update):
-    print(update.message.text) # For information only
+    print(update.message.text)
     list_ingredients[update.message.text] = {}
     list_ingredients[update.message.text]["Name"] = update.message.text
-    print(list_ingredients) # For information only
+    print(list_ingredients)
     global current_ingredient
     current_ingredient=update.message.text
     update.message.reply_text("Please enter the quantity:")
     return ADD_QUANTITY
 
-# Analogous to prev. step
 def add_quantitiy_rec(bot, update):
-    print(update.message.text) # For information only
-    print(list_ingredients) # For information only
-    list_ingredients[current_ingredient]["Quantity"] = update.message.text
+    print(update.message.text)
+    print(list_ingredients)
+    list_ingredients[current_ingredient]["Menge"] = update.message.text
     update.message.reply_text("Please enter the unit:")
-    print(list_ingredients) # For information only
+    print(list_ingredients)
     return ADD_UNIT
 
-# Analogous to prev. step, then consolidate ingredients information and add to json file
 def add_unit_rec(bot, update):
     print (update.message.text)
-    list_ingredients[current_ingredient]["Unit"] = update.message.text
+    list_ingredients[current_ingredient]["Einheiten"] = update.message.text
     print(list_ingredients)
 
     temp_list_recipe = load_recipes()
     temp_list_recipe[current_recipe_name]=list_ingredients
     save_recipes(temp_list_recipe)
 
+
+    #liste ingredients in liste recipes übertragen
+
     update.message.reply_text("Would you like to add another ingredient?")
     update.message.reply_text("Please enter 'yes' or 'no'")
     return ADD_MORE
 
-# Trigger "next round in loop" for next ingredient
 def add_more_rec(bot, update):
     print ("more")
     if str(update.message.text) == "yes":
@@ -300,7 +299,6 @@ def add_more_rec(bot, update):
         update.message.reply_text("Please send your next ingredient:")
         return ADD_NAME
 
-# If "no" or anything else than "yes" is entered, process is ended
     else:
         global list_ingredients
         list_ingredients=[]
@@ -308,13 +306,14 @@ def add_more_rec(bot, update):
         current_ingredient=""
         global current_recipe_name
         current_recipe_name=""
-        update.message.reply_text("Thank you! The recipe was saved.")
+        update.message.reply_text("Thanks bro! Nice one")
         return ConversationHandler.END
-
+# hier zwischenspeicher in JSON reinladen
 def cancel(bot, update):
     user = update.message.from_user
     logger.info("%s canceled the conversation.", user.first_name)
     update.message.reply_text('Bye! I hope we can talk again some day.')
+
     return ConversationHandler.END
 
 ######################### General Error Handling Function ############################################
@@ -369,7 +368,7 @@ def InlineKeyboardCallbackHandler(bot, update):
         server.quit()
 
         bot.send_message(chat_id=update.callback_query.message.chat.id,
-                         text="Alright! We just sent the list to {}".format(email_user))
+                         text="Allright! We just sent the list to {}".format(email_user))
 
         logger.info("%s just exported a list of ingredients to his e-mail address",
                     update.callback_query.message.chat.first_name)
@@ -381,7 +380,7 @@ def InlineKeyboardCallbackHandler(bot, update):
         save_recipes(list_recipes)
 
         bot.send_message(chat_id=update.callback_query.message.chat.id,
-                         text="Alright! The recipe '{}' has just been deleted."
+                         text="Allright! The recipe '{}' has just been deleted."
                          .format(update.callback_query.data.lstrip("Delete ")))
 
         logger.info("%s just deleted the following recipe: %s",
@@ -409,7 +408,7 @@ dispatcher = updater.dispatcher #shortcut to add Handlers to the dispatcher
 user_info_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('edit_profile', edit_user_profile)],
 
-        states={ #Waiting for? State is defined at the end of prev. function
+        states={ #Worauf warten wir? State wird am ende der vorherigen Funtkion gesetzt
             OPTION_EDIT: [CallbackQueryHandler(user_info_inline_call_handler)],
             EDIT_EMAIL: [MessageHandler(Filters.text, edit_email)],
         },
@@ -420,7 +419,7 @@ user_info_conv_handler = ConversationHandler(
 add_recipe_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('add_recipes', add_recipe)],
 
-        states={ #Waiting for? State is defined at the end of prev. function
+        states={ #Worauf warten wir? State wird am ende der vorherigen Funtkion gesetzt
             ADD_RECIPE_NAME: [MessageHandler(Filters.text, add_name_rec)],
             ADD_NAME: [MessageHandler(Filters.text, add_name_ing)],
             ADD_QUANTITY: [MessageHandler(Filters.text, add_quantitiy_rec)],
@@ -443,8 +442,10 @@ dispatcher.add_handler(CommandHandler('admin', admin_info))
 ##################################### CallbackQueryHandlers ############################################
 dispatcher.add_handler(CallbackQueryHandler(InlineKeyboardCallbackHandler))
 
+
 ##################################### ErrorHandlers ####################################################
 dispatcher.add_error_handler(error_callback) #Any errors will be added to the log
+
 
 #Starting the bot
 updater.start_polling()
