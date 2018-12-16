@@ -308,7 +308,7 @@ def add_more_rec(bot, update):
         current_recipe_name=""
         update.message.reply_text("Thanks bro! Nice one")
         return ConversationHandler.END
-# hier zwischenspeicher in JSON reinladen
+# hier zwischenspeicher in JSON reinladen jo
 def cancel(bot, update):
     user = update.message.from_user
     logger.info("%s canceled the conversation.", user.first_name)
