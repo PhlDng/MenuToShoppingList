@@ -12,6 +12,8 @@ from email.mime.text import MIMEText
 global list_selected_recipes
 list_selected_recipes = []
 
+global current_ingredient
+current_ingredient = ""
 ########################### Setting up the event logger #############################################
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -63,6 +65,11 @@ def load_recipes():
 def save_recipes(list_recipes):
     f = open("list_recipes.json", 'w')
     json.dump(list_recipes, f)
+    f.close()
+
+def save_ingredients(list_new_ingredients):
+    f = open("list_new_ingredients.json", 'w')
+    json.dump(list_new_ingredients, f)
     f.close()
 
 def menu_build_helper(buttons,
@@ -161,9 +168,12 @@ def show_recipes(bot, update):
 def add_recipe(bot, update):
     update.message.reply_text(
         'Hello {}, add your recipe'.format(update.message.from_user.first_name))
+    global list_ingredients
+    list_ingredients={}
+# name recipe in recipe liste
 
-    update.message.reply_text("Please send your first ingredient:")
-    return ADD_NAME
+    update.message.reply_text("What is your recipe called?:")
+    return ADD_RECIPE_NAME
 
 def delete_recipe(bot, update):
     # creating list of available recipes from JSON to build the button menu
@@ -239,22 +249,44 @@ def cancel(bot, update):
     return ConversationHandler.END
 
 ################### Functions for ConversationHandler (Add Recipe Info) ###############################
-ADD_NAME, ADD_QUANTITY, ADD_UNIT, ADD_MORE = range(4)
+ADD_RECIPE_NAME, ADD_NAME, ADD_QUANTITY, ADD_UNIT, ADD_MORE = range(5)
 def add_name_rec(bot, update):
-    print(update.message.text)
+    global current_recipe_name
+    current_recipe_name=update.message.text
 
+    print (update.message.text)
+    update.message.reply_text("Please enter the first ingredient:")
+    return ADD_NAME
+
+def add_name_ing(bot, update):
+    print(update.message.text)
+    list_ingredients[update.message.text] = {}
+    list_ingredients[update.message.text]["Name"] = update.message.text
+    print(list_ingredients)
+    global current_ingredient
+    current_ingredient=update.message.text
     update.message.reply_text("Please enter the quantity:")
     return ADD_QUANTITY
 
 def add_quantitiy_rec(bot, update):
     print(update.message.text)
-
+    print(list_ingredients)
+    list_ingredients[current_ingredient]["Menge"] = update.message.text
     update.message.reply_text("Please enter the unit:")
+    print(list_ingredients)
     return ADD_UNIT
 
 def add_unit_rec(bot, update):
     print (update.message.text)
+    list_ingredients[current_ingredient]["Einheiten"] = update.message.text
+    print(list_ingredients)
 
+    temp_list_recipe = load_recipes()
+    temp_list_recipe[current_recipe_name]=list_ingredients
+    save_recipes(temp_list_recipe)
+
+
+    #liste ingredients in liste recipes übertragen
 
     update.message.reply_text("Would you like to add another ingredient?")
     update.message.reply_text("Please enter 'yes' or 'no'")
@@ -268,6 +300,12 @@ def add_more_rec(bot, update):
         return ADD_NAME
 
     else:
+        global list_ingredients
+        list_ingredients=[]
+        global current_ingredient
+        current_ingredient=""
+        global current_recipe_name
+        current_recipe_name=""
         update.message.reply_text("Thanks bro! Nice one")
         return ConversationHandler.END
 # hier zwischenspeicher in JSON reinladen
@@ -382,7 +420,8 @@ add_recipe_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('add_recipes', add_recipe)],
 
         states={ #Worauf warten wir? State wird am ende der vorherigen Funtkion gesetzt
-            ADD_NAME: [MessageHandler(Filters.text, add_name_rec)],
+            ADD_RECIPE_NAME: [MessageHandler(Filters.text, add_name_rec)],
+            ADD_NAME: [MessageHandler(Filters.text, add_name_ing)],
             ADD_QUANTITY: [MessageHandler(Filters.text, add_quantitiy_rec)],
             ADD_UNIT: [MessageHandler(Filters.text, add_unit_rec)],
             ADD_MORE: [MessageHandler(Filters.text, add_more_rec)]
