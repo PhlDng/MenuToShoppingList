@@ -382,18 +382,18 @@ def InlineKeyboardCallbackHandler(bot, update):
         logger.info("%s just exported a list of ingredients to his e-mail address",
                     update.callback_query.message.chat.first_name)
 
-    ##### CALLBACK COMMING FROM THE DELETE MENU #####
+    ##### CALLBACK COMING FROM THE DELETE MENU #####
     elif update.callback_query.data in list_possible_callbacks_delete:
         list_recipes = load_recipes()
 
-        #Deleting recipe from list of recipies (JSON file)
+        #Deleting recipe from list of recipes (JSON file)
         del list_recipes[update.callback_query.data.lstrip("Delete ")]
         save_recipes(list_recipes)
 
         # To avoid errors, we are also checking if a user currently has this recipe in his list
         # of selected recipes
         if update.callback_query.data.lstrip("Delete ") in list_selected_recipes[update.callback_query.message.chat.id]:
-            del list_selected_recipes[update.callback_query.message.chat.id
+            del list_selected_recipes[update.callback_query.message.chat.id]
 
         bot.send_message(chat_id=update.callback_query.message.chat.id,
                          text="Alright! The recipe '{}' has just been deleted."
