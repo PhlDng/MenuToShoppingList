@@ -162,7 +162,7 @@ def show_recipes(bot, update):
                                                           footer_buttons=footer_button))
     bot.send_message(chat_id=update.message.chat_id,
                      text="This is what we have in store. "
-                          "Please select what you would like to add to your list",
+                          "Please select what you would like to add to your list by clicking on the respective button once. Then select your preferred channel in the last row please.",
                      reply_markup=reply_markup)
 
 def add_recipe(bot, update):
@@ -332,7 +332,7 @@ def InlineKeyboardCallbackHandler(bot, update):
         # create empty list for specified user
         list_selected_recipes[update.callback_query.message.chat.id] = []
 
-    ##### CALLBACK COMMING FROM THE SELECTION MENU #####
+    ##### CALLBACK COMING FROM THE SELECTION MENU #####
     #Callback from the menu for one of the recipes
     if str(update.callback_query.data) in list_possible_callbacks_select :
 
@@ -347,8 +347,11 @@ def InlineKeyboardCallbackHandler(bot, update):
                          parse_mode=telegram.ParseMode.HTML,
                          text=build_list_ingredients(list_selected_recipes[update.callback_query.message.chat.id]))
 
-        # delete recipies stored in list after we sent the ingredients
+        # delete recipes stored in list after we sent the ingredients
         list_selected_recipes[update.callback_query.message.chat.id] = []
+        bot.send_message(chat_id=update.callback_query.message.chat.id,
+                         parse_mode=telegram.ParseMode.HTML,
+                         text= "\n The groceries list was reset.")
 
         logger.info("%s just exported a list of ingredients to telegram",
                     update.callback_query.message.chat.first_name)
@@ -359,28 +362,32 @@ def InlineKeyboardCallbackHandler(bot, update):
         email_user = user_data[str(update.callback_query.message.chat.id)]["e-mail"]
         name_user = user_data[str(update.callback_query.message.chat.id)]["first_name"]
 
-        server = smtplib.SMTP(str(config.email_smtp_adr), int(config.email_smtp_port))
-        server.starttls()
-        server.login(config.email_user, config.email_password)
+        try:
+            server = smtplib.SMTP(str(config.email_smtp_adr), int(config.email_smtp_port))
+            server.starttls()
+            server.login(config.email_user, config.email_password)
 
-        msg = MIMEMultipart()
-        msg['From'] = config.email_user
-        msg['To'] = email_user
-        msg['Subject'] = "List of groceries for {}".format(name_user)
-        #"replace" function to convert string from Makdown to html
-        body = build_list_ingredients(list_selected_recipes[update.callback_query.message.chat.id]).replace("\n", "<br>")
-        msg.attach(MIMEText(body, 'html'))
+            msg = MIMEMultipart()
+            msg['From'] = config.email_user
+            msg['To'] = email_user
+            msg['Subject'] = "List of groceries for {}".format(name_user)
+            #"replace" function to convert string from Makdown to html
+            body = build_list_ingredients(list_selected_recipes[update.callback_query.message.chat.id]).replace("\n", "<br>")
+            msg.attach(MIMEText(body, 'html'))
 
-        server.sendmail(config.email_user, email_user, msg.as_string())
-        server.quit()
+            server.sendmail(config.email_user, email_user, msg.as_string())
+            server.quit()
 
-        bot.send_message(chat_id=update.callback_query.message.chat.id,
-                         text="Alright! We just sent the list to {}".format(email_user))
+            bot.send_message(chat_id=update.callback_query.message.chat.id,
+                             text="Alright! We just sent the list to {} and reset the groceries list.".format(email_user))
 
-        #delete recipies stored in list after we sent the ingredients
-        list_selected_recipes[update.callback_query.message.chat.id] = []
-        logger.info("%s just exported a list of ingredients to his e-mail address",
-                    update.callback_query.message.chat.first_name)
+            #delete recipes stored in list after we sent the ingredients
+            list_selected_recipes[update.callback_query.message.chat.id] = []
+            logger.info("%s just exported a list of ingredients to his e-mail address",
+                        update.callback_query.message.chat.first_name)
+        except:
+           bot.send_message(chat_id=update.callback_query.message.chat.id,
+                            text="No e-mail address found. Please enter your e-mail address under /edit_profile")
 
     ##### CALLBACK COMING FROM THE DELETE MENU #####
     elif update.callback_query.data in list_possible_callbacks_delete:
