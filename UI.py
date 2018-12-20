@@ -101,7 +101,7 @@ def build_list_ingredients(list_selected_recipes):
         for ingredient in data_recipes[selected_item]:
             str_ingredients = str_ingredients + \
                               data_recipes[selected_item][ingredient]["Quantity"] + " " + \
-                              data_recipes[selected_item][ingredient]["Unit"] + " " + \
+                              data_recipes[selected_item][ingredient]["Unit"] + " of " + \
                               data_recipes[selected_item][ingredient]["Name"] + "\n"
 
     return str_ingredients
@@ -170,7 +170,7 @@ def add_recipe(bot, update):
         'Hello {}, add your recipe'.format(update.message.from_user.first_name))
     global list_ingredients
     list_ingredients={}
-    update.message.reply_text("What is your recipe called?:")
+    update.message.reply_text("What is your recipe called?")
     return ADD_RECIPE_NAME # go into next state where recipe name is saved
 
 def delete_recipe(bot, update):
@@ -211,11 +211,6 @@ def edit_user_profile(bot, update):
 
     return OPTION_EDIT
 
-def admin_info(bot, update):
-    if update.message.chat_id in config.telegram_admin_ids:
-        user_info = load_user_info()
-        update.message.reply_text(user_info)
-
 ################### Functions for ConversationHandler (Edit User Info) ###############################
 # Initiate states
 OPTION_EDIT, EDIT_EMAIL = range(2)
@@ -229,7 +224,8 @@ def user_info_inline_call_handler(bot, update):
                          text="Alright! Please send me your e-mail address:")
         return EDIT_EMAIL
     else:
-        logger.error("Signal sent by InlineKeyboard for Profil Edit not found.")
+        logger.error("Signal sent by InlineKeyboard for Profil Edit not found: %s",
+                     update.callback_query.data)
 
 # Save the entered address
 def edit_email(bot, update):
@@ -351,7 +347,7 @@ def InlineKeyboardCallbackHandler(bot, update):
         list_selected_recipes[update.callback_query.message.chat.id] = []
         bot.send_message(chat_id=update.callback_query.message.chat.id,
                          parse_mode=telegram.ParseMode.HTML,
-                         text= "\n The groceries list was reset.")
+                         text= "\n Your list of selected recipes was reset.")
 
         logger.info("%s just exported a list of ingredients to telegram",
                     update.callback_query.message.chat.first_name)
@@ -460,7 +456,6 @@ dispatcher.add_handler(add_recipe_conv_handler)
 dispatcher.add_handler(CommandHandler('start', new_user))
 dispatcher.add_handler(CommandHandler('show_recipes', show_recipes))
 dispatcher.add_handler(CommandHandler('delete_recipe', delete_recipe))
-dispatcher.add_handler(CommandHandler('admin', admin_info))
 
 ##################################### CallbackQueryHandlers ############################################
 dispatcher.add_handler(CallbackQueryHandler(InlineKeyboardCallbackHandler))
