@@ -2,7 +2,6 @@
 
 #Data for Telegram
 key_telegram_bot = "697615040:AAGqdfL8_Bvm-vf4mXHy64wf3_Qfpmj5Y_M" #string
-telegram_admin_ids = [] #list of numbers
 
 #Data for Emails
 email_user = "MenuToGroceryList@mail.ch" #string

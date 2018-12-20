@@ -152,9 +152,11 @@ def show_recipes(bot, update):
         list_recipes.append(recipe)
 
     button_list = [InlineKeyboardButton(s, callback_data="selection_" + str(s)) for s in list_recipes]
-    footer_button = [InlineKeyboardButton("Send ingredients to telegram",
+    footer_button = [InlineKeyboardButton("Send to telegram",
                                           callback_data="export_to_telegram"),
-                     InlineKeyboardButton("Send an email with ingredients",
+                     InlineKeyboardButton("Clear current list",
+                                          callback_data="clear_current_list_recipes"),
+                     InlineKeyboardButton("Send to email",
                                           callback_data="export_to_email")]
 
     reply_markup = InlineKeyboardMarkup(menu_build_helper(button_list,
@@ -162,7 +164,7 @@ def show_recipes(bot, update):
                                                           footer_buttons=footer_button))
     bot.send_message(chat_id=update.message.chat_id,
                      text="This is what we have in store. "
-                          "Please select what you would like to add to your list by clicking on the respective button once. Then select your preferred channel in the last row please.",
+                          "Please select what you would like to add to your list by clicking on the respective button once. Then select your preferred channel in the last row.",
                      reply_markup=reply_markup)
 
 def add_recipe(bot, update):
@@ -336,8 +338,24 @@ def InlineKeyboardCallbackHandler(bot, update):
         if str(update.callback_query.data.lstrip("selection_")) not in list_selected_recipes[update.callback_query.message.chat.id]:
             list_selected_recipes[update.callback_query.message.chat.id].append(
             str(update.callback_query.data).lstrip("selection_"))
+            #sending user confirmation of selection with pop-up
+            bot.answerCallbackQuery(callback_query_id=update.callback_query.id,
+                                    text=str(update.callback_query.data).lstrip("selection_") +
+                                         " has been added to your list!")
 
-    # Callback for exporting the list of selected recipes
+        #Recipe is already in list -> informing user
+        else:
+            bot.answerCallbackQuery(callback_query_id=update.callback_query.id,
+                                    text=str(update.callback_query.data).lstrip("selection_") +
+                                         " is already in your list! You can't add it twice")
+
+    # Callback for exporting the list of selected recipes or clearing it
+    elif update.callback_query.data == "clear_current_list_recipes":
+        list_selected_recipes[update.callback_query.message.chat.id] = []
+        bot.answerCallbackQuery(callback_query_id=update.callback_query.id,
+                                text="Alright, your current list of selected recipes has been deleted")
+
+
     elif update.callback_query.data == "export_to_telegram":
         bot.send_message(chat_id=update.callback_query.message.chat.id,
                          parse_mode=telegram.ParseMode.HTML,
@@ -399,8 +417,8 @@ def InlineKeyboardCallbackHandler(bot, update):
             del list_selected_recipes[update.callback_query.message.chat.id]
 
         bot.send_message(chat_id=update.callback_query.message.chat.id,
-                         text="Alright! The recipe '{}' has just been deleted."
-                         .format(update.callback_query.data.lstrip("Delete ")))
+                         text="Alright! The recipe '{}' has just been deleted. ".format(update.callback_query.data.lstrip("Delete ")) +
+                              "\n Show me the list of available recipes: /show_recipes")
 
         logger.info("%s just deleted the following recipe: %s",
                     update.callback_query.message.chat.first_name,
